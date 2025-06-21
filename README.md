@@ -70,10 +70,10 @@ This tool is ideal for personal projects, learning exercises, or quick prototypi
 Once set up, you can run the tool using the alias `b` or directly via `./cman.sh`:
 
 ```bash
-b init      # Set up folders and README
-b build     # Compile .c files into build/
-b run       # Execute the compiled binary
-b clean     # Remove build/ and bin/
+i     # Set up folders and README
+b     # Compile .c files into build/
+r     # Execute the compiled binary
+c     # Remove build/ and bin/
 ```
 
 #### Folder structure after `init`:
