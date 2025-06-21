@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+alias i="./cman.sh init"
+alias b="./cman.sh build"
+alias r="./cman.sh run"
+alias c="./cman.sh clean"
