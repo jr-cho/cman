@@ -1,71 +1,106 @@
-# CMAN: A Lightweight C Project Manager
-
-`cman` is a shell-based tool to simplify the setup, build, run, and clean process for C projects. It provides a minimalistic workflow to help developers focus on programming rather than on repetitive tasks like folder creation or compilation commands.
-
----
+# CMAN: A Lightweight C Manager
 
 ## Introduction
 
-C development often requires setting up the same folder structure, writing Makefiles, and remembering long compiler flags. `cman` was created to streamline this process.
+`cman` simplifies the way you start, build, run, and maintain C projects by eliminating setup friction and repetitive typing. Inspired by personal need and cargo, this tool was built to make project creation and management quicker, cleaner, and more fun.
 
-With `cman`, you can:
+### Why CMAN?
 
-* Quickly scaffold new C projects with a consistent folder layout
-* Compile all source files using a single command
-* Run and clean projects without extra configuration
-* Maintain your workflow using a global alias like `b`
+* Automatically scaffold a standardized folder structure
+* Compile all source files into a build directory
+* Clean build files with one command
+* Run output binaries instantly
+* All via short aliases
 
-This tool is ideal for personal projects, learning exercises, or quick prototyping in C.
+## Features
 
----
+* `init` – Setup new project folder layout
+* `build` – Compile source files
+* `run` – Run the compiled binary
+* `clean` – Clean compiled binaries and build folders
 
-## User Instructions
+## Setup
 
 ### Requirements
 
 * Bash (tested with GNU Bash 5.x+)
-* GCC (or a compatible C compiler)
+* GCC compiler
 
----
+### Installation
 
-### Setup
+1. Download `cman.sh` and `cman_env` to your project folder.
 
-1. **Clone or download** `cman.sh` and `cman_env` to your project or scripts folder.
+2. Make the script executable:
 
-2. **Make the script executable**:
+```bash
+chmod +x cman.sh
+```
 
-   ```bash
-   chmod +x cman.sh
-   ```
+3. Activate the environment:
 
-3. **Activate the alias**
+```bash
+source ./cman_env
+```
 
-   You can either:
+Or permanently add the alias to your shell:
 
-   * Source it manually each time:
+**For Bash:**
 
-     ```bash
-     source ./cman_env
-     ```
-   * Or, permanently add it to your shell config:
+```bash
+echo "source /path/to/cman_env" >> ~/.bashrc
+source ~/.bashrc
+```
 
-     **For Bash:**
+**For Zsh:**
 
-     ```bash
-     echo "source /path/to/cman_env" >> ~/.bashrc
-     source ~/.bashrc
-     ```
+```bash
+echo "source /path/to/cman_env" >> ~/.zshrc
+source ~/.zshrc
+```
 
-     **For Zsh:**
+### Optional: Inherit environment across subdirectories
 
-     ```bash
-     echo "source /path/to/cman_env" >> ~/.zshrc
-     source ~/.zshrc
-     ```
+If you want all child folders inside your main `C` folder to automatically inherit the `cman_env`, consider using [`direnv`](https://direnv.net/).
 
----
+1. Install `direnv` (if not already installed):
 
-### Usage
+```bash
+# On most systems
+brew install direnv   # macOS
+sudo apt install direnv   # Debian/Ubuntu
+```
+
+2. Hook `direnv` into your shell:
+
+**For Bash:**
+
+```bash
+echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**For Zsh:**
+
+```bash
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+3. In your `~/C` folder, create a `.envrc` file with:
+
+```bash
+source ~/C/cman_env
+```
+
+4. Approve the file:
+
+```bash
+direnv allow
+```
+
+Now, every time you `cd` into your C folder or one of its subfolders, `cman_env` will be automatically loaded.
+
+## Usage
 
 Once set up, you can run the tool using the alias `b` or directly via `./cman.sh`:
 
@@ -76,35 +111,36 @@ r     # Execute the compiled binary
 c     # Remove build/ and bin/
 ```
 
-#### Folder structure after `init`:
+### Folder Structure
 
 ```
 .
-├── src/         # Source files (e.g. main.c)
+├── src/         # Source files
 ├── include/     # Header files
-├── docs/        # Project documentation
-├── build/       # Compiled binaries
-├── bin/         # Optional binaries/scripts
-├── cman.sh      # The main script
-├── cman_env     # Optional environment/alias script
+├── docs/        # Documentation
+├── build/       # Compiled outputs
+├── bin/         # Optional executable location
+├── cman.sh      # Script file
+├── cman_env     # Environment alias file
 └── README.md
 ```
 
----
+## Contributing
 
-## Contributor Instructions
+We welcome all contributions! Here’s how to get started:
 
-If you’d like to contribute:
+1. Fork or clone the repo
+2. Improve or add features (e.g., Makefile support, testing)
+3. Test your changes in a sample project
+4. Submit a pull request (PR)
 
-1. Fork the repository or copy the script into your own workspace.
-2. Extend the command parser inside `cman.sh` with new features (e.g. debug flags, header dependency scanning, test automation).
-3. Test your changes in a temporary C project using the provided command structure.
-4. Share your improvements or submit pull requests if this is hosted on GitHub.
+Some Ideas I had:
 
-Suggested enhancements:
+* Makefile generation
+* Multiple binary support
+* Built-in test runner
 
-* Makefile integration
-* Multiple binary outputs
-* Basic unit test runner
-* Cross-platform support
+## License
+
+This project is open-source and licensed under the [MIT License](./LICENSE).
 
