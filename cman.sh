@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Script: cman.sh
+# Description: Lightweight C Manager 
+# Version: 1.0.0
+# Usage: ./cman.sh [options | --init, -i, --build, -b, --run, -r, --clean, -c]
+
 # Configuration
 PROJECT_NAME="app"
 SRC_DIR="src"
@@ -11,8 +16,9 @@ BIN_DIR="bin"
 # Colors
 GREEN="\033[0;32m"
 RED="\033[0;31m"
-NC="\033[0m" # No color
+NC="\033[0m"
 
+# Initializing C Project Helper Function
 function init_project() {
   echo -e "${GREEN}Initializing C project structure...${NC}"
   mkdir -p "$SRC_DIR" "$INCLUDE_DIR" "$DOCS_DIR" "$BUILD_DIR" "$BIN_DIR"
@@ -26,6 +32,7 @@ function init_project() {
   echo -e "${GREEN}Done.${NC}"
 }
 
+# Build Helper Function
 function build_project() {
   echo -e "${GREEN}Building project...${NC}"
   mkdir -p "$BUILD_DIR"
@@ -38,6 +45,7 @@ function build_project() {
   fi
 }
 
+# Run Helper Function
 function run_project() {
   BIN="$BUILD_DIR/$PROJECT_NAME"
   if [ -f "$BIN" ]; then
@@ -48,6 +56,7 @@ function run_project() {
   fi
 }
 
+# Clean Healper Function
 function clean_project() {
   echo -e "${RED}Cleaning build and bin directories...${NC}"
   rm -rf "$BUILD_DIR" "$BIN_DIR"
@@ -56,19 +65,19 @@ function clean_project() {
 
 # Command handler
 case "$1" in
-  init)
+  --init|-i)
     init_project
     ;;
-  build)
+  --build|-b)
     build_project
     ;;
-  run)
+  --run|-r)
     run_project
     ;;
-  clean)
+  --clean|-c)
     clean_project
     ;;
   *)
-    echo -e "${RED}Usage:${NC} ./cman.sh {init|build|run|clean}"
+    echo -e "${RED}Usage:${NC} ./cman.sh [options | --init, -i, --build, -b, --run, -r, --clean, -c]"
     ;;
 esac
