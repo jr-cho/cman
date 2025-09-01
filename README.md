@@ -21,7 +21,7 @@ It makes it easy to create, build, run, and test C projects without writing manu
 Clone the repo and put `cman` in your `$PATH`:
 
 ```bash
-git clone https://github.com/yourusername/cman.git
+git clone https://github.com/jr-cho/cman.git
 cd cman
 chmod +x cman.sh
 sudo cp cman.sh /usr/local/bin/cman
