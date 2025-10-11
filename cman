@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-VERSION="1.0.4"
+VERSION="1.1.0"
 BUILD_DIR="build"
 SRC_DIR="src"
 TEST_DIR="tests"
+CONFIG_FILE=".cman.conf"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
 NC='\033[0m'
 
 log_info() {
@@ -22,6 +24,10 @@ log_error() {
     echo -e "${RED}[✗]${NC} $1"
 }
 
+log_warning() {
+    echo -e "${YELLOW}[!]${NC} $1"
+}
+
 print_banner() {
     echo -e "${BLUE}"
     cat << "EOF"
@@ -33,11 +39,59 @@ print_banner() {
         ╚═════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
 EOF
     echo -e "${NC}"
-    echo -e "${BLUE}        Lightweight C Manager v$VERSION${NC}"
+    echo -e "${BLUE}        C Project Manager v$VERSION${NC}"
+    echo -e "${BLUE}        Native • Embedded • Testing${NC}"
     echo ""
 }
 
-create_makefile() {
+# Board configurations
+declare -A BOARDS=(
+    ["arduino-uno"]="atmega328p:16000000:avrdude:-c arduino -p atmega328p"
+    ["arduino-mega"]="atmega2560:16000000:avrdude:-c wiring -p atmega2560"
+    ["esp32"]="esp32:240000000:esptool:--chip esp32"
+    ["esp8266"]="esp8266:80000000:esptool:--chip esp8266"
+    ["stm32f103"]="stm32f103c8:72000000:stm32flash:-"
+    ["teensy40"]="imxrt1062:600000000:teensy_loader_cli:-mmcu=TEENSY40"
+    ["raspberry-pi-pico"]="rp2040:133000000:picotool:load"
+    ["raspberry-pi-4"]="bcm2711:1800000000:ssh:native"
+    ["raspberry-pi-5"]="bcm2712:2400000000:ssh:native"
+    ["jetson-nano"]="tegra210:1430000000:ssh:native"
+)
+
+get_board_info() {
+    local board="$1"
+    local field="$2"
+    local info="${BOARDS[$board]}"
+    [[ -z "$info" ]] && return 1
+    
+    IFS=':' read -ra PARTS <<< "$info"
+    case "$field" in
+        mcu) echo "${PARTS[0]}" ;;
+        freq) echo "${PARTS[1]}" ;;
+        flasher) echo "${PARTS[2]}" ;;
+        flags) echo "${PARTS[3]}" ;;
+    esac
+}
+
+load_config() {
+    [[ ! -f "$CONFIG_FILE" ]] && return 1
+    source "$CONFIG_FILE"
+    return 0
+}
+
+save_config() {
+    cat > "$CONFIG_FILE" << EOF
+# CMAN Configuration
+PROJECT_TYPE="$PROJECT_TYPE"
+TARGET_BOARD="$TARGET_BOARD"
+SERIAL_PORT="$SERIAL_PORT"
+BAUD_RATE="${BAUD_RATE:-9600}"
+REMOTE_HOST="${REMOTE_HOST:-}"
+REMOTE_PATH="${REMOTE_PATH:-}"
+EOF
+}
+
+create_makefile_native() {
     local name="$1"
     cat > "Makefile" << EOF
 CC = clang
@@ -88,6 +142,95 @@ clean:
 EOF
 }
 
+create_makefile_embedded() {
+    local name="$1"
+    local board="$2"
+    local mcu=$(get_board_info "$board" mcu)
+    local freq=$(get_board_info "$board" freq)
+    local flasher=$(get_board_info "$board" flasher)
+    
+    # Check if this is a Linux SBC (Raspberry Pi, Jetson)
+    if [[ "$flasher" == "ssh" ]]; then
+        cat > "Makefile" << EOF
+CC = gcc
+CFLAGS = -Wall -Wextra -O2 -std=c11
+TARGET = $name
+BUILD_DIR = $BUILD_DIR
+SRC_DIR = $SRC_DIR
+
+SOURCES = \$(wildcard \$(SRC_DIR)/*.c)
+OBJECTS = \$(SOURCES:\$(SRC_DIR)/%.c=\$(BUILD_DIR)/%.o)
+
+.PHONY: all build clean
+
+all: build
+
+\$(BUILD_DIR)/%.o: \$(SRC_DIR)/%.c
+	@mkdir -p \$(BUILD_DIR)
+	@echo "[BUILD] Compiling \$<..."
+	@\$(CC) \$(CFLAGS) -c \$< -o \$@
+
+\$(BUILD_DIR)/\$(TARGET): \$(OBJECTS)
+	@echo "[LINK] Linking..."
+	@\$(CC) \$(CFLAGS) \$(OBJECTS) -o \$@
+	@echo "[✓] Build completed"
+
+build: \$(BUILD_DIR)/\$(TARGET)
+
+clean:
+	@echo "[CLEAN] Removing build artifacts..."
+	@rm -rf \$(BUILD_DIR)
+	@echo "[✓] Clean completed"
+EOF
+    else
+        # AVR/ARM microcontroller Makefile
+        cat > "Makefile" << EOF
+CC = avr-gcc
+OBJCOPY = avr-objcopy
+SIZE = avr-size
+MCU = $mcu
+F_CPU = ${freq}UL
+TARGET = $name
+BUILD_DIR = $BUILD_DIR
+SRC_DIR = $SRC_DIR
+
+CFLAGS = -Wall -Os -mmcu=\$(MCU) -DF_CPU=\$(F_CPU)
+SOURCES = \$(wildcard \$(SRC_DIR)/*.c)
+OBJECTS = \$(SOURCES:\$(SRC_DIR)/%.c=\$(BUILD_DIR)/%.o)
+
+.PHONY: all build hex flash clean
+
+all: build hex
+
+\$(BUILD_DIR)/%.o: \$(SRC_DIR)/%.c
+	@mkdir -p \$(BUILD_DIR)
+	@echo "[BUILD] Compiling \$<..."
+	@\$(CC) \$(CFLAGS) -c \$< -o \$@
+
+\$(BUILD_DIR)/\$(TARGET).elf: \$(OBJECTS)
+	@echo "[LINK] Linking..."
+	@\$(CC) \$(CFLAGS) \$(OBJECTS) -o \$@
+
+build: \$(BUILD_DIR)/\$(TARGET).elf
+
+hex: \$(BUILD_DIR)/\$(TARGET).elf
+	@echo "[HEX] Creating hex file..."
+	@\$(OBJCOPY) -O ihex -R .eeprom \$< \$(BUILD_DIR)/\$(TARGET).hex
+	@\$(SIZE) --format=avr --mcu=\$(MCU) \$<
+	@echo "[✓] Build completed"
+
+flash: hex
+	@echo "[FLASH] Programming device..."
+	@cman flash
+
+clean:
+	@echo "[CLEAN] Removing build artifacts..."
+	@rm -rf \$(BUILD_DIR)
+	@echo "[✓] Clean completed"
+EOF
+    fi
+}
+
 cmd_new() {
     local name="$1"
 
@@ -107,7 +250,10 @@ cmd_new() {
     mkdir -p "$name/$SRC_DIR" || exit 1
     cd "$name" || exit 1
 
-    create_makefile "$name"
+    PROJECT_TYPE="native"
+    save_config
+
+    create_makefile_native "$name"
 
     cat > "$SRC_DIR/main.c" << EOF
 #include <stdio.h>
@@ -121,19 +267,27 @@ EOF
     cat > "README.md" << EOF
 # $name
 
-## Usage
+## Quick Start
 
 \`\`\`bash
-cman build       # Build
-cman run         # Run
-cman test init   # Create tests
-cman test build  # Build tests
+cman build       # Build project
+cman run         # Run binary
+cman test init   # Setup tests
 cman test run    # Run tests
+\`\`\`
+
+## Embedded Development
+
+\`\`\`bash
+cman init --embedded    # Convert to embedded
+cman targets            # List boards
+cman flash              # Flash to device
+cman monitor            # Serial monitor
 \`\`\`
 EOF
 
     if command -v git &> /dev/null; then
-        git init -q && echo "$BUILD_DIR/" > .gitignore
+        git init -q && echo -e "$BUILD_DIR/\n$CONFIG_FILE" > .gitignore
     fi
 
     log_success "Created project '$name'"
@@ -145,19 +299,113 @@ EOF
 }
 
 cmd_init() {
+    local embedded=false
+    local board=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --embedded)
+                embedded=true
+                shift
+                ;;
+            --board)
+                board="$2"
+                shift 2
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
     local name="${1:-$(basename "$(pwd)")}"
 
-    if [[ -f "Makefile" ]]; then
-        log_error "Makefile already exists"
+    if [[ -f "Makefile" ]] && [[ -f "$CONFIG_FILE" ]]; then
+        log_error "Project already initialized"
         exit 1
     fi
 
     log_info "Initializing project '$name'"
     mkdir -p "$SRC_DIR"
-    create_makefile "$name"
 
-    if [[ ! -f "$SRC_DIR/main.c" ]]; then
-        cat > "$SRC_DIR/main.c" << EOF
+    if $embedded; then
+        if [[ -z "$board" ]]; then
+            log_error "Board required for embedded projects"
+            echo "Usage: cman init --embedded --board <board>"
+            echo "Run 'cman targets' to see available boards"
+            exit 1
+        fi
+        
+        if [[ -z "${BOARDS[$board]}" ]]; then
+            log_error "Unknown board '$board'"
+            echo "Run 'cman targets' to see available boards"
+            exit 1
+        fi
+        
+        PROJECT_TYPE="embedded"
+        TARGET_BOARD="$board"
+        save_config
+        
+        create_makefile_embedded "$name" "$board"
+        
+        if [[ ! -f "$SRC_DIR/main.c" ]]; then
+            local flasher=$(get_board_info "$board" flasher)
+            
+            if [[ "$flasher" == "ssh" ]]; then
+                # Linux SBC template (Raspberry Pi, Jetson Nano)
+                cat > "$SRC_DIR/main.c" << EOF
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+// GPIO control for $board
+// Modify paths based on your board's GPIO interface
+
+int main(void) {
+    printf("Running on $board\n");
+    printf("CPU: $(get_board_info "$board" mcu)\n");
+    printf("Frequency: $(get_board_info "$board" freq | awk '{print $1/1000000}')MHz\n");
+    
+    // Add your GPIO/hardware control code here
+    
+    while(1) {
+        printf("Hello from $board!\n");
+        sleep(1);
+    }
+    
+    return 0;
+}
+EOF
+            else
+                # Microcontroller template (Arduino, ESP32, etc)
+                cat > "$SRC_DIR/main.c" << EOF
+#include <avr/io.h>
+#include <util/delay.h>
+
+int main(void) {
+    // Setup built-in LED (Pin 13 on most Arduino boards)
+    DDRB |= (1 << DDB5);
+    
+    while(1) {
+        PORTB ^= (1 << PORTB5);  // Toggle LED
+        _delay_ms(1000);
+    }
+    
+    return 0;
+}
+EOF
+            fi
+        fi
+        
+        log_success "Initialized embedded project for $board"
+    else
+        PROJECT_TYPE="native"
+        save_config
+        
+        create_makefile_native "$name"
+        
+        if [[ ! -f "$SRC_DIR/main.c" ]]; then
+            cat > "$SRC_DIR/main.c" << EOF
 #include <stdio.h>
 
 int main(void) {
@@ -165,19 +413,175 @@ int main(void) {
     return 0;
 }
 EOF
+        fi
+        
+        log_success "Initialized native project '$name'"
     fi
-
-    log_success "Initialized project '$name'"
 }
 
 cmd_build() {
     [[ ! -f "Makefile" ]] && { log_error "Not a cman project. Run 'cman init' first."; exit 1; }
-    make build
+    load_config
+    
+    if [[ "$PROJECT_TYPE" == "embedded" ]]; then
+        make hex
+    else
+        make build
+    fi
 }
 
 cmd_run() {
     [[ ! -f "Makefile" ]] && { log_error "Not a cman project. Run 'cman init' first."; exit 1; }
-    make run
+    load_config
+    
+    if [[ "$PROJECT_TYPE" == "embedded" ]]; then
+        log_info "Opening serial monitor..."
+        cmd_monitor
+    else
+        make run
+    fi
+}
+
+cmd_flash() {
+    [[ ! -f "$CONFIG_FILE" ]] && { log_error "Not a cman project"; exit 1; }
+    load_config
+    
+    if [[ "$PROJECT_TYPE" != "embedded" ]]; then
+        log_error "Flash only works with embedded projects"
+        exit 1
+    fi
+    
+    local flasher=$(get_board_info "$TARGET_BOARD" flasher)
+    local flags=$(get_board_info "$TARGET_BOARD" flags)
+    
+    # Handle Linux SBCs (Raspberry Pi, Jetson Nano) differently
+    if [[ "$flasher" == "ssh" ]]; then
+        local binary="$BUILD_DIR/$(basename "$(pwd)")"
+        
+        if [[ ! -f "$binary" ]]; then
+            log_error "Binary not found. Run 'cman build' first"
+            exit 1
+        fi
+        
+        if [[ -z "$REMOTE_HOST" ]]; then
+            log_warning "Remote host not configured"
+            echo -n "Enter remote host (e.g., pi@192.168.1.100): "
+            read -r REMOTE_HOST
+            REMOTE_PATH="${REMOTE_PATH:-/home/pi/}"
+            save_config
+        fi
+        
+        log_info "Deploying to $TARGET_BOARD at $REMOTE_HOST"
+        
+        # Copy binary to remote host
+        scp "$binary" "$REMOTE_HOST:$REMOTE_PATH/" || {
+            log_error "Failed to copy binary to remote host"
+            exit 1
+        }
+        
+        # Make executable
+        ssh "$REMOTE_HOST" "chmod +x $REMOTE_PATH/$(basename "$binary")" || {
+            log_error "Failed to set executable permissions"
+            exit 1
+        }
+        
+        log_success "Deployed successfully"
+        log_info "Run with: ssh $REMOTE_HOST '$REMOTE_PATH/$(basename "$binary")'"
+        
+        return 0
+    fi
+    
+    # Handle microcontrollers (Arduino, ESP32, etc)
+    local hex_file="$BUILD_DIR/$(basename "$(pwd)").hex"
+    if [[ ! -f "$hex_file" ]]; then
+        log_error "Hex file not found. Run 'cman build' first"
+        exit 1
+    fi
+    
+    if [[ -z "$SERIAL_PORT" ]]; then
+        log_warning "Serial port not configured"
+        echo -n "Enter serial port (e.g., /dev/ttyUSB0): "
+        read -r SERIAL_PORT
+        save_config
+    fi
+    
+    log_info "Flashing to $TARGET_BOARD on $SERIAL_PORT..."
+    
+    case "$flasher" in
+        avrdude)
+            avrdude $flags -P "$SERIAL_PORT" -b 115200 -D -U "flash:w:$hex_file:i"
+            ;;
+        esptool)
+            esptool.py $flags --port "$SERIAL_PORT" write_flash 0x00 "$hex_file"
+            ;;
+        stm32flash)
+            stm32flash -w "$hex_file" -v -g 0x0 "$SERIAL_PORT"
+            ;;
+        teensy_loader_cli)
+            teensy_loader_cli $flags -w "$hex_file"
+            ;;
+        picotool)
+            picotool load "$hex_file"
+            ;;
+        *)
+            log_error "Unknown flasher: $flasher"
+            exit 1
+            ;;
+    esac
+    
+    if [[ $? -eq 0 ]]; then
+        log_success "Flash completed successfully"
+    else
+        log_error "Flash failed"
+        exit 1
+    fi
+}
+
+cmd_deploy() {
+    log_info "Building and flashing..."
+    cmd_build && cmd_flash
+}
+
+cmd_monitor() {
+    [[ ! -f "$CONFIG_FILE" ]] && { log_error "Not a cman project"; exit 1; }
+    load_config
+    
+    if [[ -z "$SERIAL_PORT" ]]; then
+        log_warning "Serial port not configured"
+        echo -n "Enter serial port (e.g., /dev/ttyUSB0): "
+        read -r SERIAL_PORT
+        save_config
+    fi
+    
+    local baud="${BAUD_RATE:-9600}"
+    
+    log_info "Opening serial monitor on $SERIAL_PORT at $baud baud"
+    log_info "Press Ctrl+A then K to exit"
+    
+    if command -v screen &> /dev/null; then
+        screen "$SERIAL_PORT" "$baud"
+    elif command -v minicom &> /dev/null; then
+        minicom -D "$SERIAL_PORT" -b "$baud"
+    else
+        log_error "No serial terminal found. Install 'screen' or 'minicom'"
+        exit 1
+    fi
+}
+
+cmd_targets() {
+    print_banner
+    echo "Supported Boards:"
+    echo ""
+    
+    for board in "${!BOARDS[@]}"; do
+        local mcu=$(get_board_info "$board" mcu)
+        local freq=$(get_board_info "$board" freq)
+        local freq_mhz=$((freq / 1000000))
+        printf "  %-25s %s @ %dMHz\n" "$board" "$mcu" "$freq_mhz"
+    done | sort
+    
+    echo ""
+    echo "Usage: cman init --embedded --board <board>"
 }
 
 cmd_test() {
@@ -191,10 +595,17 @@ cmd_test() {
 #include <stdio.h>
 #include <assert.h>
 
-int main(void) {
-    printf("Running tests...\\n");
+void test_basic(void) {
     assert(1 == 1);
-    printf("All tests passed!\\n");
+    printf("✓ Basic test passed\n");
+}
+
+int main(void) {
+    printf("Running tests...\n\n");
+    
+    test_basic();
+    
+    printf("\nAll tests passed!\n");
     return 0;
 }
 EOF
@@ -231,34 +642,53 @@ USAGE:
     cman <command> [options]
 
 COMMANDS:
-    new <name>        Create new C project
-    init [name]       Initialize current directory
-    build             Build with clang
-    run               Build and run
-    test <subcmd>     Manage tests
-    clean             Clean build artifacts
-    version           Show version
-    help              Show this help
+    new <name>              Create new C project
+    init [--embedded]       Initialize project
+    build                   Build project
+    run                     Run binary or open serial monitor
+    flash                   Flash to microcontroller
+    deploy                  Build + flash automatically
+    monitor                 Open serial terminal
+    test <subcmd>           Manage tests
+    clean                   Remove build files
+    targets                 Show supported boards
+    version                 Display version
+    help                    Show this help
+
+EMBEDDED OPTIONS:
+    --embedded              Initialize as embedded project
+    --board <board>         Specify target board
 
 TEST SUBCOMMANDS:
-    test init         Create test directory and starter file
-    test build        Build tests
-    test run          Run tests
-    test clean        Remove test build artifacts
+    test init               Create test directory
+    test build              Build tests
+    test run                Run tests
+    test clean              Clean test artifacts
 
 EXAMPLES:
+    # Native development
     cman new my_app
-    cd my_app
-    cman build && cman run
+    cd my_app && cman build && cman run
+
+    # Embedded development
+    cman new blink
+    cd blink
+    cman init --embedded --board arduino-uno
+    cman deploy
+    cman monitor
+
+    # Testing
     cman test init
-    cman test build && cman test run
+    cman test run
 EOF
 }
 
 cmd_version() {
     print_banner
-    echo "Dead simple C project management."
-    echo "Build • Run • Test"
+    echo "Full-featured C project manager"
+    echo "Native • Embedded • Testing"
+    echo ""
+    echo "GitHub: https://github.com/yourusername/cman"
 }
 
 main() {
@@ -277,6 +707,18 @@ main() {
             ;;
         run|r)
             cmd_run "$@"
+            ;;
+        flash|f)
+            cmd_flash "$@"
+            ;;
+        deploy|d)
+            cmd_deploy "$@"
+            ;;
+        monitor|m)
+            cmd_monitor "$@"
+            ;;
+        targets|t)
+            cmd_targets
             ;;
         test)
             cmd_test "$@"
