@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION="1.1.0"
+VERSION="1.1.1"
 BUILD_DIR="build"
 SRC_DIR="src"
 TEST_DIR="tests"
@@ -44,24 +44,54 @@ EOF
     echo ""
 }
 
-# Board configurations
-declare -A BOARDS=(
-    ["arduino-uno"]="atmega328p:16000000:avrdude:-c arduino -p atmega328p"
-    ["arduino-mega"]="atmega2560:16000000:avrdude:-c wiring -p atmega2560"
-    ["esp32"]="esp32:240000000:esptool:--chip esp32"
-    ["esp8266"]="esp8266:80000000:esptool:--chip esp8266"
-    ["stm32f103"]="stm32f103c8:72000000:stm32flash:-"
-    ["teensy40"]="imxrt1062:600000000:teensy_loader_cli:-mmcu=TEENSY40"
-    ["raspberry-pi-pico"]="rp2040:133000000:picotool:load"
-    ["raspberry-pi-4"]="bcm2711:1800000000:ssh:native"
-    ["raspberry-pi-5"]="bcm2712:2400000000:ssh:native"
-    ["jetson-nano"]="tegra210:1430000000:ssh:native"
-)
+# Board configurations - Format: "mcu:frequency:flasher:flags"
+get_board_config() {
+    local board="$1"
+    case "$board" in
+        arduino-uno)
+            echo "atmega328p:16000000:avrdude:-c arduino -p atmega328p"
+            ;;
+        arduino-mega)
+            echo "atmega2560:16000000:avrdude:-c wiring -p atmega2560"
+            ;;
+        esp32)
+            echo "esp32:240000000:esptool:--chip esp32"
+            ;;
+        esp8266)
+            echo "esp8266:80000000:esptool:--chip esp8266"
+            ;;
+        stm32f103)
+            echo "stm32f103c8:72000000:stm32flash:-"
+            ;;
+        teensy40)
+            echo "imxrt1062:600000000:teensy_loader_cli:-mmcu=TEENSY40"
+            ;;
+        raspberry-pi-pico)
+            echo "rp2040:133000000:picotool:load"
+            ;;
+        raspberry-pi-4)
+            echo "bcm2711:1800000000:ssh:native"
+            ;;
+        raspberry-pi-5)
+            echo "bcm2712:2400000000:ssh:native"
+            ;;
+        jetson-nano)
+            echo "tegra210:1430000000:ssh:native"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+list_all_boards() {
+    echo "arduino-uno arduino-mega esp32 esp8266 stm32f103 teensy40 raspberry-pi-pico raspberry-pi-4 raspberry-pi-5 jetson-nano"
+}
 
 get_board_info() {
     local board="$1"
     local field="$2"
-    local info="${BOARDS[$board]}"
+    local info=$(get_board_config "$board")
     [[ -z "$info" ]] && return 1
     
     IFS=':' read -ra PARTS <<< "$info"
@@ -336,7 +366,8 @@ cmd_init() {
             exit 1
         fi
         
-        if [[ -z "${BOARDS[$board]}" ]]; then
+        # Validate board exists
+        if ! get_board_config "$board" > /dev/null; then
             log_error "Unknown board '$board'"
             echo "Run 'cman targets' to see available boards"
             exit 1
@@ -665,30 +696,11 @@ TEST SUBCOMMANDS:
     test run                Run tests
     test clean              Clean test artifacts
 
-EXAMPLES:
-    # Native development
-    cman new my_app
-    cd my_app && cman build && cman run
-
-    # Embedded development
-    cman new blink
-    cd blink
-    cman init --embedded --board arduino-uno
-    cman deploy
-    cman monitor
-
-    # Testing
-    cman test init
-    cman test run
 EOF
 }
 
 cmd_version() {
-    print_banner
-    echo "Full-featured C project manager"
-    echo "Native • Embedded • Testing"
-    echo ""
-    echo "GitHub: https://github.com/yourusername/cman"
+    echo "${VERSION}"
 }
 
 main() {
