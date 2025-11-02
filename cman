@@ -106,14 +106,16 @@ load_config() {
         key=$(echo "$key" | xargs)
         value=$(echo "$value" | xargs | sed 's/"//g')
         [[ -z "$key" || "$key" =~ ^# ]] && continue
-        export "CONFIG_${key^^}"="$value"
+        local upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+        export "CONFIG_${upper_key}"="$value"
     done < <(sed 's/ //g' "$config_file" | grep -E '^[a-z_]+=' || true)
 }
 
 config_get() {
     local key="$1"
     local default="${2:-}"
-    local var_name="CONFIG_${key^^}"
+    local upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+    local var_name="CONFIG_${upper_key}"
     echo "${!var_name:-$default}"
 }
 
@@ -1287,13 +1289,16 @@ cmd_config() {
         get)
             [[ -z "$key" ]] && die "Usage: cman config get <key>"
             load_config
-            local var_name="CONFIG_${key^^}"
+            # Replace ^^ with tr for Bash 3.x compatibility
+            local upper_key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
+            local var_name="CONFIG_${upper_key}"
             echo "${!var_name:-not set}"
             ;;
         *)
             die "Unknown config action: $action (view|set|get)"
             ;;
     esac
+
 }
 
 ################################################################################
