@@ -125,11 +125,11 @@ cmd_new() {
     local project_name="${1:-}"
     local project_type="default"
 
+    # Parse all arguments for flags and project name
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --test)     project_type="test" ;;
-            --clean)    project_type="clean" ;;
             --embedded) project_type="embedded" ;;
+            --clean)    project_type="clean" ;;
             *)
                 if [[ -z "$project_name" ]]; then
                     project_name="$1"
@@ -139,18 +139,40 @@ cmd_new() {
         shift
     done
 
-    [[ -z "$project_name" ]] && die "Usage: cman new <project_name> [--test | --clean | --embedded]"
+    [[ -z "$project_name" ]] && die "Usage: cman new <project_name> [--embedded | --clean]"
     [[ -d "$project_name" ]] && die "Directory '$project_name' already exists"
 
     log_info "Creating new $project_type project: $project_name"
 
-    mkdir -p "$project_name"/{include,src,build,bin,tests}
+    case "$project_type" in
+        embedded)
+            _create_embedded_project "$project_name"
+            ;;
+        clean)
+            _create_clean_project "$project_name"
+            ;;
+        default|*)
+            _create_default_project "$project_name"
+            ;;
+    esac
+
+    log_success "Project created at: $project_name"
+    log_info "Next steps:"
+    echo "  1. cd $project_name"
+    echo "  2. cman build"
+    echo "  3. cman run"
+}
+
+_create_default_project() {
+    local project_name="$1"
+
+    mkdir -p "$project_name"/{include,src,build,bin}
 
     cat > "$project_name/cman.toml" << EOF
 [project]
 name = "$project_name"
 version = "0.1.0"
-type = "$project_type"
+type = "default"
 
 [build]
 compiler = "$(detect_compiler)"
@@ -186,31 +208,90 @@ cman build
 \`\`\`bash
 cman run
 \`\`\`
-
-## Test
-
-\`\`\`bash
-cman test
-\`\`\`
 EOF
 
-    cat > "$project_name/Makefile" << 'EOF'
-# This Makefile is auto-generated. Use 'cman' commands instead.
-.PHONY: all build run test clean
+    cat > "$project_name/.gitignore" << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.so
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
 
-all: build
+    cat > "$project_name/include/util.h" << 'EOF'
+#pragma once
 
-build:
-	cman build
+// UTIL FUNCTIONS
 
-run: build
-	cman run
+// END OF UTIL_H
+EOF
 
-test:
-	cman test
+    cat > "$project_name/src/main.c" << 'EOF'
+#include <stdio.h>
+#include "../include/util.h"
 
-clean:
-	cman clean
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+
+    cat > "$project_name/bin/.gitkeep" << 'EOF'
+EOF
+}
+
+_create_clean_project() {
+    local project_name="$1"
+
+    mkdir -p "$project_name"/{src,build,bin}
+
+    cat > "$project_name/cman.toml" << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "clean"
+
+[build]
+compiler = "$(detect_compiler)"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -std=c11"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
+    cat > "$project_name/README.md" << EOF
+# $project_name
+
+A minimal C project managed with cman.
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Run
+
+\`\`\`bash
+cman run
+\`\`\`
 EOF
 
     cat > "$project_name/.gitignore" << 'EOF'
@@ -236,31 +317,110 @@ int main(void) {
     return 0;
 }
 EOF
+}
 
-    cat > "$project_name/include/util.h" << 'EOF'
-#pragma once
+_create_embedded_project() {
+    local project_name="$1"
 
-// ADD UTIL FUNCTIONS HERE
+    mkdir -p "$project_name"/{include,src,build,bin}
 
-#endif // UTIL_H
+    cat > "$project_name/cman.toml" << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "embedded"
+
+[build]
+compiler = "arm-none-eabi-gcc"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -mcpu=cortex-m4 -mthumb -nostdlib"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
 EOF
 
-    if [[ "$project_type" == "test" ]]; then
-        cat > "$project_name/tests/test_main.c" << 'EOF'
-#include <stdio.h>
+    cat > "$project_name/README.md" << EOF
+# $project_name
 
-int main(void) {
-    printf("Running tests...\n");
-    return 0;
+An embedded C project managed with cman.
+
+## Prerequisites
+
+Install the ARM embedded toolchain:
+
+\`\`\`bash
+# macOS
+brew install arm-none-eabi-gcc
+
+# Ubuntu/Debian
+sudo apt-get install gcc-arm-none-eabi
+
+# Fedora
+sudo dnf install arm-none-eabi-gcc
+\`\`\`
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Configuration
+
+Update \`cman.toml\` to match your target:
+- Change \`compiler\` for different architectures (e.g., \`riscv64-unknown-elf-gcc\`)
+- Update \`cflags\` with appropriate CPU flags (\`-mcpu\`, \`-march\`, etc.)
+- Set \`ldflags\` for linker scripts and libraries
+EOF
+
+    cat > "$project_name/.gitignore" << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+
+    cat > "$project_name/src/main.c" << 'EOF'
+// Embedded systems entry point
+void main(void);
+
+void Reset_Handler(void) {
+    main();
+    while (1);
+}
+
+void main(void) {
+    // Initialize hardware here
+    // Your embedded code
 }
 EOF
-    fi
 
-    log_success "Project created at: $project_name"
-    log_info "Next steps:"
-    echo "  1. cd $project_name"
-    echo "  2. cman build"
-    echo "  3. cman run"
+    cat > "$project_name/include/hw.h" << 'EOF'
+#pragma once
+
+// Hardware definitions and macros
+
+#endif // HW_H
+EOF
 }
 
 ################################################################################
@@ -272,9 +432,8 @@ cmd_init() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --test)     project_type="test" ;;
-            --clean)    project_type="clean" ;;
             --embedded) project_type="embedded" ;;
+            --clean)    project_type="clean" ;;
             *)          ;;
         esac
         shift
@@ -286,13 +445,31 @@ cmd_init() {
 
     log_info "Initializing cman project: $project_name"
 
-    mkdir -p {include,src,build,bin,tests}
+    case "$project_type" in
+        embedded)
+            _init_embedded_project "$project_name"
+            ;;
+        clean)
+            _init_clean_project "$project_name"
+            ;;
+        default|*)
+            _init_default_project "$project_name"
+            ;;
+    esac
+
+    log_success "Project initialized: $project_name"
+}
+
+_init_default_project() {
+    local project_name="$1"
+
+    mkdir -p {include,src,build,bin}
 
     cat > cman.toml << EOF
 [project]
 name = "$project_name"
 version = "0.1.0"
-type = "$project_type"
+type = "default"
 
 [build]
 compiler = "$(detect_compiler)"
@@ -312,6 +489,26 @@ debug = false
 optimization = "3"
 EOF
 
+    if [[ ! -f "README.md" ]]; then
+        cat > README.md << EOF
+# $project_name
+
+A C project managed with cman.
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Run
+
+\`\`\`bash
+cman run
+\`\`\`
+EOF
+    fi
+
     if [[ ! -f ".gitignore" ]]; then
         cat > .gitignore << 'EOF'
 /build/
@@ -329,15 +526,528 @@ EOF
 EOF
     fi
 
+    if [[ ! -f "include/util.h" ]]; then
+        cat > include/util.h << 'EOF'
+#pragma once
+
+// UTIL FUNCTIONS
+
+// END OF UTIL_H
+EOF
+    fi
+
+    if [[ ! -f "src/main.c" ]]; then
+        cat > src/main.c << 'EOF'
+#include <stdio.h>
+#include "../include/util.h"
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+    fi
+
+    touch bin/.gitkeep
+}
+
+_init_clean_project() {
+    local project_name="$1"
+
+    mkdir -p {src,build,bin}
+
+    cat > cman.toml << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "clean"
+
+[build]
+compiler = "$(detect_compiler)"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -std=c11"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
     if [[ ! -f "README.md" ]]; then
         cat > README.md << EOF
 # $project_name
 
-A C project managed with cman.
+A minimal C project managed with cman.
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Run
+
+\`\`\`bash
+cman run
+\`\`\`
 EOF
     fi
 
-    log_success "Project initialized: $project_name"
+    if [[ ! -f ".gitignore" ]]; then
+        cat > .gitignore << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.so
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+    fi
+
+    if [[ ! -f "src/main.c" ]]; then
+        cat > src/main.c << 'EOF'
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+    fi
+}
+
+_init_embedded_project() {
+    local project_name="$1"
+
+    mkdir -p {include,src,build,bin}
+
+    cat > cman.toml << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "embedded"
+
+[build]
+compiler = "arm-none-eabi-gcc"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -mcpu=cortex-m4 -mthumb -nostdlib"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
+    if [[ ! -f "README.md" ]]; then
+        cat > README.md << EOF
+# $project_name
+
+An embedded C project managed with cman.
+
+## Prerequisites
+
+Install the ARM embedded toolchain:
+
+\`\`\`bash
+# macOS
+brew install arm-none-eabi-gcc
+
+# Ubuntu/Debian
+sudo apt-get install gcc-arm-none-eabi
+
+# Fedora
+sudo dnf install gcc-arm-none-eabi
+\`\`\`
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Configuration
+
+Update \`cman.toml\` to match your target:
+- Change \`compiler\` for different architectures (e.g., \`riscv64-unknown-elf-gcc\`)
+- Update \`cflags\` with appropriate CPU flags (\`-mcpu\`, \`-march\`, etc.)
+- Set \`ldflags\` for linker scripts and libraries
+EOF
+    fi
+
+    if [[ ! -f ".gitignore" ]]; then
+        cat > .gitignore << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+    fi
+
+    if [[ ! -f "include/util.h" ]]; then
+        cat > include/util.h << 'EOF'
+#pragma once
+
+// UTIL FUNCTIONS
+
+// END OF UTIL_H
+EOF
+    fi
+
+    if [[ ! -f "src/main.c" ]]; then
+        cat > src/main.c << 'EOF'
+#include "../include/util.h"
+
+void main(void);
+
+void Reset_Handler(void) {
+    main();
+    while (1);
+}
+
+void main(void) {
+    // Initialize hardware here
+    // Your embedded code
+}
+EOF
+    fi
+
+    touch bin/.gitkeep
+}
+
+################################################################################
+# Subcommand: new (Updated with proper project types)
+################################################################################
+
+cmd_new() {
+    local project_name="${1:-}"
+    local project_type="default"
+
+    # Parse all arguments for flags and project name
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --embedded) project_type="embedded" ;;
+            --clean)    project_type="clean" ;;
+            *)
+                if [[ -z "$project_name" ]]; then
+                    project_name="$1"
+                fi
+                ;;
+        esac
+        shift
+    done
+
+    [[ -z "$project_name" ]] && die "Usage: cman new <project_name> [--embedded | --clean]"
+    [[ -d "$project_name" ]] && die "Directory '$project_name' already exists"
+
+    log_info "Creating new $project_type project: $project_name"
+
+    case "$project_type" in
+        embedded)
+            _create_embedded_project "$project_name"
+            ;;
+        clean)
+            _create_clean_project "$project_name"
+            ;;
+        default|*)
+            _create_default_project "$project_name"
+            ;;
+    esac
+
+    log_success "Project created at: $project_name"
+    log_info "Next steps:"
+    echo "  1. cd $project_name"
+    echo "  2. cman build"
+    echo "  3. cman run"
+}
+
+_create_default_project() {
+    local project_name="$1"
+
+    mkdir -p "$project_name"/{include,src,build,bin}
+
+    cat > "$project_name/cman.toml" << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "default"
+
+[build]
+compiler = "$(detect_compiler)"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -std=c11"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
+    cat > "$project_name/README.md" << EOF
+# $project_name
+
+A C project managed with cman.
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Run
+
+\`\`\`bash
+cman run
+\`\`\`
+EOF
+
+    cat > "$project_name/.gitignore" << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.so
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+
+    cat > "$project_name/include/util.h" << 'EOF'
+#pragma once
+
+// UTIL FUNCTIONS
+
+// END OF UTIL_H
+EOF
+
+    cat > "$project_name/src/main.c" << 'EOF'
+#include <stdio.h>
+#include "../include/util.h"
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+
+    cat > "$project_name/bin/.gitkeep" << 'EOF'
+EOF
+}
+
+_create_clean_project() {
+    local project_name="$1"
+
+    mkdir -p "$project_name"/{src,build,bin}
+
+    cat > "$project_name/cman.toml" << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "clean"
+
+[build]
+compiler = "$(detect_compiler)"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -std=c11"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
+    cat > "$project_name/README.md" << EOF
+# $project_name
+
+A minimal C project managed with cman.
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Run
+
+\`\`\`bash
+cman run
+\`\`\`
+EOF
+
+    cat > "$project_name/.gitignore" << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.so
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+
+    cat > "$project_name/src/main.c" << 'EOF'
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+}
+
+_create_embedded_project() {
+    local project_name="$1"
+
+    mkdir -p "$project_name"/{include,src,build,bin}
+
+    cat > "$project_name/cman.toml" << EOF
+[project]
+name = "$project_name"
+version = "0.1.0"
+type = "embedded"
+
+[build]
+compiler = "arm-none-eabi-gcc"
+src = "src"
+include = "include"
+build = "build"
+bin = "bin"
+cflags = "-Wall -Wextra -mcpu=cortex-m4 -mthumb -nostdlib"
+ldflags = ""
+
+[dev]
+debug = true
+optimization = "0"
+
+[release]
+debug = false
+optimization = "3"
+EOF
+
+    cat > "$project_name/README.md" << EOF
+# $project_name
+
+An embedded C project managed with cman.
+
+## Prerequisites
+
+Install the ARM embedded toolchain:
+
+\`\`\`bash
+# macOS
+brew install arm-none-eabi-gcc
+
+# Ubuntu/Debian
+sudo apt-get install gcc-arm-none-eabi
+
+# Fedora
+sudo dnf install arm-none-eabi-gcc
+\`\`\`
+
+## Build
+
+\`\`\`bash
+cman build
+\`\`\`
+
+## Configuration
+
+Update \`cman.toml\` to match your target:
+- Change \`compiler\` for different architectures (e.g., \`riscv64-unknown-elf-gcc\`)
+- Update \`cflags\` with appropriate CPU flags (\`-mcpu\`, \`-march\`, etc.)
+- Set \`ldflags\` for linker scripts and libraries
+EOF
+
+    cat > "$project_name/.gitignore" << 'EOF'
+/build/
+/bin/
+*.o
+*.a
+*.elf
+*.hex
+*.bin
+.cman/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+EOF
+
+    cat > "$project_name/src/main.c" << 'EOF'
+// Embedded systems entry point
+void main(void);
+
+void Reset_Handler(void) {
+    main();
+    while (1);
+}
+
+void main(void) {
+    // Initialize hardware here
+    // Your embedded code
+}
+EOF
+
+    cat > "$project_name/include/hw.h" << 'EOF'
+#pragma once
+
+// Hardware definitions and macros
+
+#endif // HW_H
+EOF
 }
 
 ################################################################################
