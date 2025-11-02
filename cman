@@ -232,18 +232,17 @@ EOF
 #include <stdio.h>
 
 int main(void) {
-    printf("Hello from cman!\n");
+    printf("Hello World!\n");
     return 0;
 }
 EOF
 
-    cat > "$project_name/include/hello.h" << 'EOF'
-#ifndef HELLO_H
-#define HELLO_H
+    cat > "$project_name/include/util.h" << 'EOF'
+#pragma once
 
-void hello(void);
+// ADD UTIL FUNCTIONS HERE
 
-#endif // HELLO_H
+#endif // UTIL_H
 EOF
 
     if [[ "$project_type" == "test" ]]; then
