@@ -397,7 +397,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
 
-jr-cho - [@jr_cho](https://twitter.com/jr_cho_)
+jr-cho - [@jr_cho_](https://twitter.com/jr_cho_)
 
 Project Link: [https://github.com/jr-cho/cman](https://github.com/jr-cho/cman)
 
