@@ -47,6 +47,7 @@
     <li><a href="#usage">Usage Examples</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
@@ -388,6 +389,225 @@ To contribute:
 If you have a suggestion that would improve cman, please fork the repository and create a pull request, or open an issue with the "enhancement" label.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+# Troubleshooting
+
+---
+
+## Permission Denied
+
+**Problem:**
+`bash: ./cman: Permission denied`
+
+**Solution:**
+Make the script executable:
+
+```bash
+chmod +x cman
+```
+
+If installed system-wide:
+
+```bash
+sudo chmod +x /usr/local/bin/cman
+```
+
+---
+
+## Bash Version Too Old
+
+**Problem:**
+Syntax errors or unexpected behavior, especially on macOS when using the `check` command.
+
+**Cause:**
+macOS ships with Bash 3.x, but **cman** requires Bash 4.0 or later due to associative array usage in string formatting.
+
+**Solution:**
+Install a newer version of Bash:
+
+**macOS (using Homebrew):**
+
+```bash
+brew install bash
+# Add new bash to shells
+echo $(brew --prefix)/bin/bash | sudo tee -a /etc/shells
+# Change default shell
+chsh -s $(brew --prefix)/bin/bash
+```
+
+Then verify:
+
+```bash
+bash --version  # Should show 4.0 or later
+cman version    # Should now work correctly
+```
+
+---
+
+## Compiler Not Found
+
+**Problem:**
+No C compiler found. Please install `clang` or `gcc`.
+
+**Solution:**
+Install a C compiler:
+
+**macOS:**
+
+```bash
+brew install llvm
+# or
+xcode-select --install
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get install build-essential
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install gcc
+```
+
+---
+
+## clang-format Not Found
+
+**Problem:**
+`clang-format not found` when running `cman format`.
+
+**Solution:**
+Install `clang-format`:
+
+**macOS:**
+
+```bash
+brew install clang-format
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get install clang-format
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install clang-tools-extra
+```
+
+---
+
+## clang-tidy Not Found
+
+**Problem:**
+`clang-tidy not found` when running `cman check`.
+
+**Solution:**
+Install `clang-tidy`:
+
+**macOS:**
+
+```bash
+brew install clang-tools
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get install clang-tools
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install clang-tools-extra
+```
+
+---
+
+## No Source Files Found
+
+**Problem:**
+No source files found in `src`.
+
+**Cause:**
+The `src/` directory is empty or contains no `.c` files.
+
+**Solution:**
+Add C source files to the `src/` directory:
+
+```bash
+cat > src/main.c << 'EOF'
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+```
+
+---
+
+## arm-none-eabi-gcc Not Found
+
+**Problem:**
+Compiler `arm-none-eabi-gcc` not found when building embedded projects.
+
+**Solution:**
+Install the ARM embedded toolchain:
+
+**macOS:**
+
+```bash
+brew install arm-none-eabi-gcc
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get install gcc-arm-none-eabi
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install arm-none-eabi-gcc-cs
+```
+
+---
+
+## cman.toml Not Found
+
+**Problem:**
+`cman.toml` not found. Are you in a cman project directory?
+
+**Cause:**
+You are not in a directory with a valid **cman** project.
+
+**Solution:**
+Either initialize a new project or navigate to an existing one:
+
+```bash
+cman new my_project
+cd my_project
+```
+
+Or initialize the current directory:
+
+```bash
+cman init
+```
+
+---
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 
 ## License
 
