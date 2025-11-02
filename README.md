@@ -1,7 +1,6 @@
 <a id="readme-top"></a>
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
+[![Downloads][downloads-shield]][downloads-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
@@ -46,8 +45,8 @@
     <li><a href="#configuration">Configuration</a></li>
     <li><a href="#usage">Usage Examples</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
   </ol>
@@ -58,10 +57,10 @@
 cman is a modern C project manager inspired by Cargo. It provides a unified interface for creating, building, testing, and managing C projects with sensible defaults and minimal configuration overhead.
 
 Why cman?
-* Eliminates boilerplate no more copy and pasting Makefiles across projects
+* Eliminates boilerplate—no more copy-pasting Makefiles across projects
 * Sensible conventions that work out of the box
 * Unified workflow across standard, embedded, and minimal project types
-* TOML based configuration that is straightforward and readable
+* TOML-based configuration that is straightforward and readable
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -208,7 +207,7 @@ my_firmware/
 
 ### Project Management
 ```sh
-cman new <n> [--clean | --embedded]       Create new project
+cman new <n> [--clean | --embedded]    Create new project
 cman init [--clean | --embedded]          Initialize current directory as project
 ```
 
@@ -374,6 +373,168 @@ See the [open issues](https://github.com/jr-cho/cman/issues) for a detailed list
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Troubleshooting
+
+### Permission Denied
+
+**Problem:** `bash: ./cman: Permission denied`
+
+**Solution:** Make the script executable:
+```sh
+chmod +x cman
+```
+
+If installed system-wide:
+```sh
+chmod +x /usr/local/bin/cman
+```
+
+### Bash Version Too Old
+
+**Problem:** Syntax errors or unexpected behavior, especially on macOS with the `check` command
+
+**Cause:** macOS ships with Bash 3.x, but cman requires Bash 4.0 or later due to associative array usage in string formatting.
+
+**Solution:** Install a newer version of Bash:
+
+macOS (using Homebrew):
+```sh
+brew install bash
+# Add new bash to shells
+echo $(brew --prefix)/bin/bash | sudo tee -a /etc/shells
+# Change default shell
+chsh -s $(brew --prefix)/bin/bash
+```
+
+Then verify:
+```sh
+bash --version  # Should show 4.0 or later
+cman version    # Should now work correctly
+```
+
+### Compiler Not Found
+
+**Problem:** `No C compiler found. Please install clang or gcc.`
+
+**Solution:** Install a C compiler
+
+macOS:
+```sh
+brew install llvm
+# or
+xcode-select --install
+```
+
+Ubuntu/Debian:
+```sh
+sudo apt-get install build-essential
+```
+
+Fedora:
+```sh
+sudo dnf install gcc
+```
+
+### clang-format Not Found
+
+**Problem:** `clang-format not found. Please install it.` when running `cman format`
+
+**Solution:** Install clang-format
+
+macOS:
+```sh
+brew install clang-format
+```
+
+Ubuntu/Debian:
+```sh
+sudo apt-get install clang-format
+```
+
+Fedora:
+```sh
+sudo dnf install clang-tools-extra
+```
+
+### clang-tidy Not Found
+
+**Problem:** `clang-tidy not found. Please install it.` when running `cman check`
+
+**Solution:** Install clang-tidy
+
+macOS:
+```sh
+brew install clang-tools
+```
+
+Ubuntu/Debian:
+```sh
+sudo apt-get install clang-tools
+```
+
+Fedora:
+```sh
+sudo dnf install clang-tools-extra
+```
+
+### No Source Files Found
+
+**Problem:** `No source files found in src`
+
+**Cause:** The `src/` directory is empty or contains no `.c` files.
+
+**Solution:** Add C source files to the `src/` directory:
+```sh
+cat > src/main.c << 'EOF'
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+EOF
+```
+
+### arm-none-eabi-gcc Not Found
+
+**Problem:** `Compiler 'arm-none-eabi-gcc' not found` when building embedded projects
+
+**Solution:** Install the ARM embedded toolchain
+
+macOS:
+```sh
+brew install arm-none-eabi-gcc
+```
+
+Ubuntu/Debian:
+```sh
+sudo apt-get install gcc-arm-none-eabi
+```
+
+Fedora:
+```sh
+sudo dnf install arm-none-eabi-gcc-cs
+```
+
+### cman.toml Not Found
+
+**Problem:** `cman.toml not found. Are you in a cman project directory?`
+
+**Cause:** You are not in a directory with a valid cman project.
+
+**Solution:** Either initialize a new project or navigate to an existing cman project:
+```sh
+cman new my_project
+cd my_project
+```
+
+Or initialize the current directory:
+```sh
+cman init
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Contributing
 
 Contributions are welcome and greatly appreciated. They help make the open source community an excellent place to learn, inspire, and create.
@@ -390,225 +551,6 @@ If you have a suggestion that would improve cman, please fork the repository and
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-# Troubleshooting
-
----
-
-## Permission Denied
-
-**Problem:**
-`bash: ./cman: Permission denied`
-
-**Solution:**
-Make the script executable:
-
-```bash
-chmod +x cman
-```
-
-If installed system-wide:
-
-```bash
-sudo chmod +x /usr/local/bin/cman
-```
-
----
-
-## Bash Version Too Old
-
-**Problem:**
-Syntax errors or unexpected behavior, especially on macOS when using the `check` command.
-
-**Cause:**
-macOS ships with Bash 3.x, but **cman** requires Bash 4.0 or later due to associative array usage in string formatting.
-
-**Solution:**
-Install a newer version of Bash:
-
-**macOS (using Homebrew):**
-
-```bash
-brew install bash
-# Add new bash to shells
-echo $(brew --prefix)/bin/bash | sudo tee -a /etc/shells
-# Change default shell
-chsh -s $(brew --prefix)/bin/bash
-```
-
-Then verify:
-
-```bash
-bash --version  # Should show 4.0 or later
-cman version    # Should now work correctly
-```
-
----
-
-## Compiler Not Found
-
-**Problem:**
-No C compiler found. Please install `clang` or `gcc`.
-
-**Solution:**
-Install a C compiler:
-
-**macOS:**
-
-```bash
-brew install llvm
-# or
-xcode-select --install
-```
-
-**Ubuntu/Debian:**
-
-```bash
-sudo apt-get install build-essential
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install gcc
-```
-
----
-
-## clang-format Not Found
-
-**Problem:**
-`clang-format not found` when running `cman format`.
-
-**Solution:**
-Install `clang-format`:
-
-**macOS:**
-
-```bash
-brew install clang-format
-```
-
-**Ubuntu/Debian:**
-
-```bash
-sudo apt-get install clang-format
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install clang-tools-extra
-```
-
----
-
-## clang-tidy Not Found
-
-**Problem:**
-`clang-tidy not found` when running `cman check`.
-
-**Solution:**
-Install `clang-tidy`:
-
-**macOS:**
-
-```bash
-brew install clang-tools
-```
-
-**Ubuntu/Debian:**
-
-```bash
-sudo apt-get install clang-tools
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install clang-tools-extra
-```
-
----
-
-## No Source Files Found
-
-**Problem:**
-No source files found in `src`.
-
-**Cause:**
-The `src/` directory is empty or contains no `.c` files.
-
-**Solution:**
-Add C source files to the `src/` directory:
-
-```bash
-cat > src/main.c << 'EOF'
-#include <stdio.h>
-
-int main(void) {
-    printf("Hello World!\n");
-    return 0;
-}
-EOF
-```
-
----
-
-## arm-none-eabi-gcc Not Found
-
-**Problem:**
-Compiler `arm-none-eabi-gcc` not found when building embedded projects.
-
-**Solution:**
-Install the ARM embedded toolchain:
-
-**macOS:**
-
-```bash
-brew install arm-none-eabi-gcc
-```
-
-**Ubuntu/Debian:**
-
-```bash
-sudo apt-get install gcc-arm-none-eabi
-```
-
-**Fedora:**
-
-```bash
-sudo dnf install arm-none-eabi-gcc-cs
-```
-
----
-
-## cman.toml Not Found
-
-**Problem:**
-`cman.toml` not found. Are you in a cman project directory?
-
-**Cause:**
-You are not in a directory with a valid **cman** project.
-
-**Solution:**
-Either initialize a new project or navigate to an existing one:
-
-```bash
-cman new my_project
-cd my_project
-```
-
-Or initialize the current directory:
-
-```bash
-cman init
-```
-
----
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
@@ -617,20 +559,18 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Contact
 
-jr-cho - [@jr_cho_](https://twitter.com/jr_cho_)
+jr-cho - [@jr_cho](https://twitter.com/jr_cho)
 
 Project Link: [https://github.com/jr-cho/cman](https://github.com/jr-cho/cman)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[contributors-shield]: https://img.shields.io/github/contributors/jr-cho/cman.svg?style=for-the-badge
-[contributors-url]: https://github.com/jr-cho/cman/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/jr-cho/cman.svg?style=for-the-badge
-[forks-url]: https://github.com/jr-cho/cman/network/members
+[downloads-shield]: https://img.shields.io/github/downloads/jr-cho/cman/total.svg?style=for-the-badge
+[downloads-url]: https://github.com/jr-cho/cman/releases
 [stars-shield]: https://img.shields.io/github/stars/jr-cho/cman.svg?style=for-the-badge
 [stars-url]: https://github.com/jr-cho/cman/stargazers
 [issues-shield]: https://img.shields.io/github/issues/jr-cho/cman.svg?style=for-the-badge
 [issues-url]: https://github.com/jr-cho/cman/issues
 [license-shield]: https://img.shields.io/github/license/jr-cho/cman.svg?style=for-the-badge
-[license-url]: https://github.com/jr-cho/cman/LICENSE
+[license-url]: https://github.com/jr-cho/cman/blob/master/LICENSE
