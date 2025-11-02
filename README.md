@@ -207,7 +207,7 @@ my_firmware/
 
 ### Project Management
 ```sh
-cman new <n> [--clean | --embedded]    Create new project
+cman new <n> [--clean | --embedded]       Create new project
 cman init [--clean | --embedded]          Initialize current directory as project
 ```
 
