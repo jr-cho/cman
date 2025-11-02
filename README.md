@@ -413,4 +413,4 @@ Project Link: [https://github.com/jr-cho/cman](https://github.com/jr-cho/cman)
 [issues-shield]: https://img.shields.io/github/issues/jr-cho/cman.svg?style=for-the-badge
 [issues-url]: https://github.com/jr-cho/cman/issues
 [license-shield]: https://img.shields.io/github/license/jr-cho/cman.svg?style=for-the-badge
-[license-url]: https://github.com/jr-cho/cman/blob/master/LICENSE
+[license-url]: https://github.com/jr-cho/cman/LICENSE
