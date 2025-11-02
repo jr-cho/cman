@@ -57,10 +57,10 @@
 cman is a modern C project manager inspired by Cargo. It provides a unified interface for creating, building, testing, and managing C projects with sensible defaults and minimal configuration overhead.
 
 Why cman?
-* Eliminates boilerplate—no more copy-pasting Makefiles across projects
+* Eliminates boilerplate no more copy and pasting Makefiles across projects
 * Sensible conventions that work out of the box
 * Unified workflow across standard, embedded, and minimal project types
-* TOML-based configuration that is straightforward and readable
+* TOML based configuration that is straightforward and readable
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
