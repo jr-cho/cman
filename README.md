@@ -1,6 +1,5 @@
 <a id="readme-top"></a>
 
-[![Downloads][downloads-shield]][downloads-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
@@ -566,8 +565,6 @@ Project Link: [https://github.com/jr-cho/cman](https://github.com/jr-cho/cman)
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[downloads-shield]: https://img.shields.io/github/downloads/jr-cho/cman/total.svg?style=for-the-badge
-[downloads-url]: https://github.com/jr-cho/cman/releases
 [stars-shield]: https://img.shields.io/github/stars/jr-cho/cman.svg?style=for-the-badge
 [stars-url]: https://github.com/jr-cho/cman/stargazers
 [issues-shield]: https://img.shields.io/github/issues/jr-cho/cman.svg?style=for-the-badge
